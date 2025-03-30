@@ -21,4 +21,6 @@ void get_jockey_races_by_name(sqlite3* db, const char* jockey_name);
 void get_owner_horses_and_races(sqlite3* db, const char* owner_name);
 void get_races_by_period(sqlite3* db, const char* start_date, const char* end_date);
 
+void update_all_horses_photo(sqlite3* db, const char* file_path);
+
 #endif // RACECOURSE_H

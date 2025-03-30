@@ -26,7 +26,8 @@ void show_menu() {
     printf("17. Get Jockey Races by Name\n");
     printf("18. Get Owner Horses and Races\n");
     printf("19. Get Races by Period\n");
-    printf("20. Exit\n");
+    printf("20. Update All Horses Photo\n");
+    printf("21. Exit\n");
     printf("Enter your choice: ");
 }
 
@@ -45,15 +46,58 @@ void handle_user_input(sqlite3* db) {
         scanf("%d", &choice);
 
         switch (choice) {
-            case 1:
-                printf("Enter username: ");
-                scanf("%s", username);
-                printf("Enter password: ");
-                scanf("%s", password);
-                printf("Enter role (admin, owner, jockey): ");
-                scanf("%s", role);
-                register_user(db, username, password, role);
-                break;
+        case 1: // Register user
+        {
+            char username[50], password[50], role[20];
+            printf("Enter username: ");
+            scanf("%s", username);
+            printf("Enter password: ");
+            scanf("%s", password);
+            printf("Enter role (admin, owner, jockey): ");
+            scanf("%s", role);
+
+            if (strcmp(role, "jockey") == 0) {
+                char jockey_last_name[100];
+                int experience, birth_year;
+                char address[255];
+
+                printf("Enter jockey last name: ");
+                scanf("%s", jockey_last_name);
+                printf("Enter experience: ");
+                scanf("%d", &experience);
+                printf("Enter birth year: ");
+                scanf("%d", &birth_year);
+                printf("Enter address: ");
+                scanf("%s", address);
+
+
+                add_jockey(db, jockey_last_name, experience, birth_year, address);
+
+                int new_jockey_id = (int)sqlite3_last_insert_rowid(db);
+
+                register_user(db, username, password, "jockey", new_jockey_id, "");
+
+                printf("Jockey registered successfully. user=%s, jockey_id=%d\n",
+                    username, new_jockey_id);
+
+            }
+            else if (strcmp(role, "owner") == 0) {
+
+                char ownerName[100];
+                printf("Enter owner name: ");
+                scanf("%s", ownerName);
+                register_user(db, username, password, "owner", 0, ownerName);
+                printf("Owner registered successfully. user=%s, owner=%s\n",
+                    username, ownerName);
+
+            }
+            else {
+                register_user(db, username, password, role, 0, "");
+                printf("Admin (or other role) user registered successfully.\n");
+            }
+            break;
+        }
+
             case 2:
                 printf("Enter username: ");
                 scanf("%s", username);
@@ -240,6 +284,13 @@ void handle_user_input(sqlite3* db) {
                 get_races_by_period(db, start_date, end_date);
                 break;
             case 20:
+                if (!logged_in || !is_admin(db, username)) {
+                    printf("Access denied.\n");
+                    break;
+                }
+                update_all_horses_photo(db, "data/horses.jpeg");
+                break;
+            case 21:
                 exit(0);
             default:
                 printf("Invalid choice. Please try again.\n");

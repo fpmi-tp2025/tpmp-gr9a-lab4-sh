@@ -17,7 +17,7 @@ void add_jockey(sqlite3* db, const char* last_name, int experience, int birth_ye
 
 void add_race(sqlite3* db, const char* date, int race_number, int horse_id, int jockey_id, int place) {
     char query[256];
-    snprintf(query, sizeof(query), "INSERT INTO Races (date, race_number, horse_id, jockey_id, place, jockeys_id, horses_id) VALUES ('%s', %d, %d, %d, %d, %d, %d);", date, race_number, horse_id, jockey_id, place, jockey_id, horse_id);
+    snprintf(query, sizeof(query), "INSERT INTO Races (date, race_number, horse_id, jockey_id, place) VALUES ('%s', %d, %d, %d, %d);", date, race_number, horse_id, jockey_id, place);
     execute_query(db, query);
 }
 
@@ -34,24 +34,46 @@ void delete_horse(sqlite3* db, int id) {
 }
 
 void distribute_prize_fund(sqlite3* db, float fund) {
-    char query[256];
-    snprintf(query, sizeof(query), "SELECT horse_id, place FROM Races ORDER BY date DESC, race_number DESC LIMIT 3;");
+    // «апрос на получение horse_id и place именно из последнего забега
+    const char* query =
+        "WITH LastRace AS ("
+        "   SELECT date, race_number "
+        "   FROM Races "
+        "   ORDER BY date DESC, race_number DESC "
+        "   LIMIT 1"
+        ") "
+        "SELECT R.horse_id, R.place "
+        "FROM Races R "
+        "JOIN LastRace LR ON R.date = LR.date AND R.race_number = LR.race_number "
+        "WHERE R.place <= 3 "       // берЄм только 1,2,3 места
+        "ORDER BY R.place ASC;";
+
     sqlite3_stmt* stmt;
     if (sqlite3_prepare_v2(db, query, -1, &stmt, 0) != SQLITE_OK) {
         fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
         return;
     }
-    float prizes[3] = {fund * 0.5, fund * 0.3, fund * 0.2};
-    int i = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
+
+    float prizes[3] = { fund * 0.5f, fund * 0.3f, fund * 0.2f };
+    int counter = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && counter < 3) {
         int horse_id = sqlite3_column_int(stmt, 0);
         int place = sqlite3_column_int(stmt, 1);
-        char prize_query[256];
-        snprintf(prize_query, sizeof(prize_query), "INSERT INTO PrizeFund (horse_id, amount) VALUES (%d, %.2f);", horse_id, prizes[place - 1]);
-        execute_query(db, prize_query);
-        i++;
+
+        // place - 1 даст индекс 0..2
+        if (place >= 1 && place <= 3) {
+            float prize = prizes[place - 1];
+            char prize_query[256];
+            snprintf(prize_query, sizeof(prize_query),
+                "INSERT INTO PrizeFund (horse_id, amount) VALUES (%d, %.2f);",
+                horse_id, prize);
+            execute_query(db, prize_query);
+            counter++;
+        }
     }
     sqlite3_finalize(stmt);
+}
+sqlite3_finalize(stmt);
 }
 
 void get_jockey_races(sqlite3* db, const char* jockey_name) {
@@ -267,3 +289,48 @@ void get_races_by_period(sqlite3* db, const char* start_date, const char* end_da
     }
     sqlite3_finalize(stmt);
 }
+
+
+void update_all_horses_photo(sqlite3* db, const char* file_path) {
+    FILE* f = fopen(file_path, "rb");
+    if (!f) {
+        fprintf(stderr, "Cannot open file %s\n", file_path);
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+
+    unsigned char* buffer = (unsigned char*)malloc(size);
+    if (!buffer) {
+        fclose(f);
+        fprintf(stderr, "Memory allocation error.\n");
+        return;
+    }
+    fread(buffer, 1, size, f);
+    fclose(f);
+
+    const char* sql = "UPDATE Horses SET photo = ?;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        free(buffer);
+        return;
+    }
+
+ 
+    sqlite3_bind_blob(stmt, 1, buffer, size, SQLITE_TRANSIENT);
+
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to execute UPDATE: %s\n", sqlite3_errmsg(db));
+    }
+    else {
+        printf("All horses updated with photo from \"%s\".\n", file_path);
+    }
+
+    sqlite3_finalize(stmt);
+    free(buffer);
+}
+

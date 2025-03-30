@@ -3,12 +3,24 @@
 #include <stdio.h>
 #include <string.h>
 
-bool register_user(sqlite3* db, const char* username, const char* password, const char* role) {
-    char query[256];
-    snprintf(query, sizeof(query), "INSERT INTO Users (username, password, role) VALUES ('%s', '%s', '%s');", username, password, role);
+bool register_user(sqlite3* db, const char* username, const char* password, const char* role,
+    int jockey_id, const char* owner_name)
+{
+    // Если роль = "jockey", проставим jockey_id (но owner_name может быть NULL или пустая строка)
+    // Если роль = "owner", проставим owner_name (jockey_id = 0)
+
+    char query[512];
+    snprintf(query, sizeof(query),
+        "INSERT INTO Users (username, password, role, jockey_id, owner_name) "
+        "VALUES ('%s', '%s', '%s', %d, '%s');",
+        username, password, role,
+        (role && strcmp(role, "jockey") == 0) ? jockey_id : 0,
+        (role && strcmp(role, "owner") == 0) ? owner_name : ""
+    );
     execute_query(db, query);
     return true;
 }
+
 
 bool login_user(sqlite3* db, const char* username, const char* password, char* role) {
     char query[256];
