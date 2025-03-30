@@ -15,5 +15,10 @@ void get_all_jockeys(sqlite3* db);
 void get_all_races(sqlite3* db);
 void get_all_users(sqlite3* db);
 void get_all_prize_funds(sqlite3* db);
+void get_most_winning_horse(sqlite3* db);
+void get_most_active_jockey(sqlite3* db);
+void get_jockey_races_by_name(sqlite3* db, const char* jockey_name);
+void get_owner_horses_and_races(sqlite3* db, const char* owner_name);
+void get_races_by_period(sqlite3* db, const char* start_date, const char* end_date);
 
 #endif // RACECOURSE_H

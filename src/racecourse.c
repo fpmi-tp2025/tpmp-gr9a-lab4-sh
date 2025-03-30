@@ -142,8 +142,8 @@ void get_all_users(sqlite3* db) {
         int id = sqlite3_column_int(stmt, 0);
         const char* username = (const char*)sqlite3_column_text(stmt, 1);
         const char* password = (const char*)sqlite3_column_text(stmt, 2);
-        int is_admin = sqlite3_column_int(stmt, 3);
-        printf("ID: %d, Username: %s, Password: %s, Is Admin: %d\n", id, username, password, is_admin);
+        const char* role = (const char*)sqlite3_column_text(stmt, 3);
+        printf("ID: %d, Username: %s, Password: %s, Role: %s\n", id, username, password, role);
     }
     sqlite3_finalize(stmt);
 }
@@ -161,6 +161,109 @@ void get_all_prize_funds(sqlite3* db) {
         int horse_id = sqlite3_column_int(stmt, 1);
         float amount = sqlite3_column_double(stmt, 2);
         printf("ID: %d, Horse ID: %d, Amount: %.2f\n", id, horse_id, amount);
+    }
+    sqlite3_finalize(stmt);
+}
+
+void get_most_winning_horse(sqlite3* db) {
+    char query[] = "SELECT Horses.*, COUNT(Races.place) AS wins FROM Horses JOIN Races ON Horses.id = Races.horse_id WHERE Races.place = 1 GROUP BY Horses.id ORDER BY wins DESC LIMIT 1;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+    printf("Most Winning Horse:\n");
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const char* name = (const char*)sqlite3_column_text(stmt, 1);
+        int age = sqlite3_column_int(stmt, 2);
+        int experience = sqlite3_column_int(stmt, 3);
+        const char* owner = (const char*)sqlite3_column_text(stmt, 4);
+        float price = sqlite3_column_double(stmt, 5);
+        int wins = sqlite3_column_int(stmt, 6);
+        printf("ID: %d, Name: %s, Age: %d, Experience: %d, Owner: %s, Price: %.2f, Wins: %d\n", id, name, age, experience, owner, price, wins);
+    }
+    sqlite3_finalize(stmt);
+}
+
+void get_most_active_jockey(sqlite3* db) {
+    char query[] = "SELECT Jockeys.*, COUNT(Races.id) AS total_races FROM Jockeys JOIN Races ON Jockeys.id = Races.jockey_id GROUP BY Jockeys.id ORDER BY total_races DESC LIMIT 1;";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+    printf("Most Active Jockey:\n");
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const char* last_name = (const char*)sqlite3_column_text(stmt, 1);
+        int experience = sqlite3_column_int(stmt, 2);
+        int birth_year = sqlite3_column_int(stmt, 3);
+        const char* address = (const char*)sqlite3_column_text(stmt, 4);
+        int total_races = sqlite3_column_int(stmt, 5);
+        printf("ID: %d, Last Name: %s, Experience: %d, Birth Year: %d, Address: %s, Total Races: %d\n", id, last_name, experience, birth_year, address, total_races);
+    }
+    sqlite3_finalize(stmt);
+}
+
+void get_jockey_races_by_name(sqlite3* db, const char* jockey_name) {
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT date, horse_id, place FROM Races JOIN Jockeys ON Races.jockey_id = Jockeys.id WHERE Jockeys.last_name = '%s';", jockey_name);
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+    printf("Races for Jockey %s:\n", jockey_name);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* date = (const char*)sqlite3_column_text(stmt, 0);
+        int horse_id = sqlite3_column_int(stmt, 1);
+        int place = sqlite3_column_int(stmt, 2);
+        printf("Date: %s, Horse ID: %d, Place: %d\n", date, horse_id, place);
+    }
+    sqlite3_finalize(stmt);
+}
+
+void get_owner_horses_and_races(sqlite3* db, const char* owner_name) {
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT Horses.*, Races.date, Races.place FROM Horses LEFT JOIN Races ON Horses.id = Races.horse_id WHERE Horses.owner = '%s';", owner_name);
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+    printf("Horses and Races for Owner %s:\n", owner_name);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const char* name = (const char*)sqlite3_column_text(stmt, 1);
+        int age = sqlite3_column_int(stmt, 2);
+        int experience = sqlite3_column_int(stmt, 3);
+        const char* owner = (const char*)sqlite3_column_text(stmt, 4);
+        float price = sqlite3_column_double(stmt, 5);
+        const char* date = (const char*)sqlite3_column_text(stmt, 6);
+        int place = sqlite3_column_int(stmt, 7);
+        printf("ID: %d, Name: %s, Age: %d, Experience: %d, Owner: %s, Price: %.2f, Date: %s, Place: %d\n", id, name, age, experience, owner, price, date, place);
+    }
+    sqlite3_finalize(stmt);
+}
+
+void get_races_by_period(sqlite3* db, const char* start_date, const char* end_date) {
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT * FROM Races WHERE date BETWEEN '%s' AND '%s';", start_date, end_date);
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to execute statement: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+    printf("Races between %s and %s:\n", start_date, end_date);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const char* date = (const char*)sqlite3_column_text(stmt, 1);
+        int race_number = sqlite3_column_int(stmt, 2);
+        int horse_id = sqlite3_column_int(stmt, 3);
+        int jockey_id = sqlite3_column_int(stmt, 4);
+        int place = sqlite3_column_int(stmt, 5);
+        printf("ID: %d, Date: %s, Race Number: %d, Horse ID: %d, Jockey ID: %d, Place: %d\n", id, date, race_number, horse_id, jockey_id, place);
     }
     sqlite3_finalize(stmt);
 }
