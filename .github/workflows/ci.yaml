@@ -1,0 +1,20 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: sudo apt-get install -y sqlite3 libsqlite3-dev check libcheck-dev
+
+    - name: Build project
+      run: make
+
+    - name: Run tests
+      run: make test
