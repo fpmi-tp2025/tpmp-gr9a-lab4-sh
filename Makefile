@@ -1,47 +1,36 @@
-# Makefile для проекта "Ипподром"
+CC = gcc
 
-# Компилятор и флаги
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -O2 -g
-LDFLAGS = -lsqlite3 -lcrypto
+CFLAGS = -Wall -Wextra -Werror -std=c99
 
-# Исходные файлы
-SRCS = main.cpp database.cpp auth_manager.cpp admin_controller.cpp \
-       jockey_interface.cpp owner_interface.cpp race_manager.cpp reporting.cpp
+SRC_DIR = src
+INCLUDE_DIR = includes
+SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
 
-# Объектные файлы
-OBJS = $(SRCS:.cpp=.o)
+OBJ_FILES = $(SRC_FILES:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
-# Исполняемый файл
-TARGET = hippodrome
+BUILD_DIR = build
 
-# Правило по умолчанию
-all: $(TARGET)
+OUTPUT = bin/racecourse
 
-# Сборка исполняемого файла
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+SQLITE_LIB = -lsqlite3
 
-# Правило для компиляции .cpp в .o
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+all: $(OUTPUT)
 
-# Заголовочные файлы как зависимости
-database.o: database.h
-auth_manager.o: auth_manager.h database.h
-admin_controller.o: admin_controller.h database.h
-jockey_interface.o: jockey_interface.h database.h
-owner_interface.o: owner_interface.h database.h
-race_manager.o: race_manager.h database.h
-reporting.o: reporting.h database.h
-main.o: auth_manager.h admin_controller.h jockey_interface.h owner_interface.h
+$(OUTPUT): $(OBJ_FILES)
+	$(CC) $(CFLAGS) -o $@ $^ $(SQLITE_LIB)
 
-# Очистка
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf $(BUILD_DIR) $(OUTPUT)
 
-# Установка зависимостей (для Ubuntu/Debian)
-install-deps:
-	sudo apt-get install sqlite3 libsqlite3-dev libssl-dev
+help:
+	@echo "Makefile for Racecourse Management System"
+	@echo "Usage:"
+	@echo "  make                - Build the project"
+	@echo "  make clean          - Clean up build artifacts"
+	@echo "  make help           - Show this help message"
 
-.PHONY: all clean install-deps
+.PHONY: all clean help
